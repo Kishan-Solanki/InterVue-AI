@@ -1,25 +1,20 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 // import Agent from "@/components/Agent";
-
-export default function Page() {
+function InterviewContent() {
   const searchParams = useSearchParams();
-
   const userId = searchParams.get("userId");
   const username = searchParams.get("username");
   const profileImageURL = searchParams.get("profileImageURL");
 
   return (
-    <div className="p-4">
-      <h3 className="text-xl font-bold">Interview Generation</h3>
-
-      <div className="mt-2">
-        <p><strong>User ID:</strong> {userId}</p>
-        <p><strong>Username:</strong> {username}</p>
-        <p><strong>Profile Image:</strong> {profileImageURL}</p>
-      </div>
-
+    <div>
+      <h3>Interview Generation</h3>
+      <p>User ID: {userId}</p>
+      <p>Username: {username}</p>
+      <p>Profile Image: {profileImageURL}</p>
       {/* If Agent is a client component, uncomment this */}
       {/* 
       <Agent
@@ -30,5 +25,13 @@ export default function Page() {
       /> 
       */}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading interview...</p>}>
+      <InterviewContent />
+    </Suspense>
   );
 }
