@@ -42,6 +42,12 @@ const userSchema = new mongoose.Schema(
     forgotPasswordExpiry: {
       type: Date,
     },
+    interviews: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Interview",
+      }
+    ]
   },
   {
     timestamps: true,

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const Dashboard = () => {
   const [user, setUser] = useState(null)
@@ -62,9 +63,24 @@ const Dashboard = () => {
           <p>Status: {user.isVerified ? 'Verified ✅' : 'Not Verified ❌'}</p>
         </div>
       </div>
+
+      <Link
+        href={{
+          pathname: '/interview',
+          query: {
+            userId: user.id,
+            username: user.username,
+            profileImageURL: user.profileImageURL,
+          },
+        }}
+        className="text-cyan-400 hover:underline"
+      >
+        Interview
+      </Link>
+
       <button
         onClick={handleLogout}
-        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 ml-4"
       >
         Logout
       </button>
