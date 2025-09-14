@@ -1,3 +1,5 @@
+"use client"
+
 import Agent from "@/components/Agent";
 import { useSearchParams } from 'next/navigation'
 
