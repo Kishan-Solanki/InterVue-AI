@@ -1,6 +1,6 @@
 "use client"
 
-import Agent from "@/components/Agent";
+// import Agent from "@/components/Agent";
 import { useSearchParams } from 'next/navigation'
 
 const Page = () => {
@@ -14,12 +14,12 @@ const Page = () => {
     <>
       <h3>Interview generation</h3>
 
-      <Agent
+      {/* <Agent
         userName={username}
         userId={userId}
         profileImage={profileImageURL}
         type="generate"
-      />
+      /> */}
     </>
   );
 };
