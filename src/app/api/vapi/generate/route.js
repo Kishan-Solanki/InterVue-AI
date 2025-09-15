@@ -5,7 +5,7 @@ import User from "@/model/userModel";
 import { connect } from "@/lib/dbconfig";
 
 export async function POST(request) {
-  const { type, role, level, techstack, amount, userid } = await request.json();
+  const { type, role, level, techstack, amount, userid, company } = await request.json();
 
   try {
     await connect();
@@ -17,6 +17,7 @@ export async function POST(request) {
         The tech stack used in the job is: ${techstack}.
         The focus between behavioural and technical questions should lean towards: ${type}.
         The amount of questions required is: ${amount}.
+        For company nemed ${company}.
         Please return only the questions, without any additional text.
         The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters.
         Return the questions formatted like this:

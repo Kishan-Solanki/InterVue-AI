@@ -1,50 +1,32 @@
 import { NextResponse } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/change-password', '/verifyemail'];
-
-export async function middleware(req) {
-  const { pathname } = req.nextUrl;
+export function middleware(req) {
   const token = req.cookies.get('token')?.value;
+  const url = req.nextUrl.clone();
 
-  // If token exists
-  if (token) {
-    try {
-      // Authenticated users should NOT access public pages
-      if (PUBLIC_PATHS.includes(pathname)) {
-        return NextResponse.redirect(new URL('/dashboard', req.url));
-      }
+  const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/change-password', '/verifyemail'];
+  const AUTH_PATHS = ['/dashboard', '/interview'];
 
-      return NextResponse.next();
-    } catch (err) {
-      // Token might be invalid or expired - clear it
-      const res = NextResponse.redirect(new URL('/login', req.url));
-      res.cookies.set('token', '', {
-        httpOnly: true,
-        expires: new Date(0),
-        path: '/',
-      });
-      return res;
-    }
+  // Add debug headers
+  const res = NextResponse.next();
+  res.headers.set('X-Debug-Token', token || 'NO_TOKEN');
+  res.headers.set('X-Debug-Path', url.pathname);
+
+  // If user has token, block public auth pages
+  if (token && PUBLIC_PATHS.includes(url.pathname)) {
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
   }
 
-  // No token
-  if (PUBLIC_PATHS.includes(pathname)) {
-    return NextResponse.next(); // Allow access to public pages
+  // If user has no token, block protected pages
+  if (!token && AUTH_PATHS.some(path => url.pathname.startsWith(path))) {
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
 
-  // Trying to access protected route without token
-  return NextResponse.redirect(new URL('/login', req.url));
+  return res;
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/profile/:path*',
-    '/login',
-    '/register',
-    '/forgot-password',
-    '/change-password',
-    '/verifyemail',
-    '/profile',
-  ],
+  matcher: ['/((?!_next|static|favicon.ico).*)'],
 };

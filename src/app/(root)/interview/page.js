@@ -2,7 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-// import Agent from "@/components/Agent";
+import Agent from "@/components/Agent";
+
 function InterviewContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId");
@@ -15,15 +16,12 @@ function InterviewContent() {
       <p>User ID: {userId}</p>
       <p>Username: {username}</p>
       <p>Profile Image: {profileImageURL}</p>
-      {/* If Agent is a client component, uncomment this */}
-      {/* 
       <Agent
         userName={username}
         userId={userId}
         profileImage={profileImageURL}
         type="generate"
       /> 
-      */}
     </div>
   );
 }
