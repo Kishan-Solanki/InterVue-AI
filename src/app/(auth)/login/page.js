@@ -39,16 +39,17 @@ function LoginPageContent() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
-        const message =
-          err.response?.data?.message ||
-          err.response?.data?.error ||
-          'Something went wrong. Please try again.';
+        const errorMessage = err.response?.data?.error || 'Something went wrong. Please try again.';
 
         if (status === 403 && err.response?.data?.redirectTo === '/verifyemail') {
           toast.error('Please verify your email before logging in.');
           router.push('/verifyemail');
+        } else if (status === 404 && errorMessage === 'Email not found') {
+          toast.error('Email not found. Please check your email or register for a new account.');
+        } else if (status === 401 && errorMessage === 'Incorrect password') {
+          toast.error('Incorrect password. Please try again or reset your password.');
         } else {
-          toast.error(message);
+          toast.error(errorMessage);
         }
       } else {
         toast.error('Unexpected error occurred. Please try again.');
@@ -82,11 +83,10 @@ function LoginPageContent() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${
-                email && !/^\S+@\S+\.\S+$/.test(email)
-                  ? 'border-red-500'
-                  : 'border-white/20'
-              } focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50`}
+              className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${email && !/^\S+@\S+\.\S+$/.test(email)
+                ? 'border-red-500'
+                : 'border-white/20'
+                } focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50`}
               placeholder="Enter your email"
             />
           </div>
@@ -100,11 +100,10 @@ function LoginPageContent() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${
-                  password && password.length < 6
-                    ? 'border-red-500'
-                    : 'border-white/20'
-                } focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-10 disabled:opacity-50`}
+                className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${password && password.length < 6
+                  ? 'border-red-500'
+                  : 'border-white/20'
+                  } focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-10 disabled:opacity-50`}
                 placeholder="Enter your password"
               />
               <button

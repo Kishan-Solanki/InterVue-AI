@@ -24,7 +24,7 @@ const interviewSchema = new mongoose.Schema(
         },
         amount: {
             type: Number,
-            default : 10,
+            default: 10,
         },
         techstack: [
             {
@@ -35,12 +35,15 @@ const interviewSchema = new mongoose.Schema(
         question_answers: [
             {
                 question: { type: String, required: true },
-                answer: { type: String },
+                answer: { type: String, default: "" },
             },
         ],
         feedback: {
             totalScore: { type: Number, default: 0 },
-            finalAssessment: { type: String, trim: true },
+            finalAssessment: { type: String, trim: true, default: "" },
+            strengths: [{ type: String }],
+            improvements: [{ type: String }],
+            recommendations: [{ type: String }]
         },
         company: {
             type: String,

@@ -28,12 +28,12 @@ export async function POST(req) {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return NextResponse.json({ error: 'Invalid email' }, { status: 401 });
+      return NextResponse.json({ error: 'Email not found' }, { status: 404 }); // Changed to 404
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
+      return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
     }
 
     if (!user.isVerified) {

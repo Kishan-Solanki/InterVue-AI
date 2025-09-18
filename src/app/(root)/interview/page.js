@@ -9,19 +9,22 @@ function InterviewContent() {
   const userId = searchParams.get("userId");
   const username = searchParams.get("username");
   const profileImageURL = searchParams.get("profileImageURL");
+  const autoStart = searchParams.get("start") === "1";
 
   return (
-    <div>
-      <h3>Interview Generation</h3>
-      <p>User ID: {userId}</p>
-      <p>Username: {username}</p>
-      <p>Profile Image: {profileImageURL}</p>
+    <div className="w-full min-h-screen mx-auto px-4 py-8 bg-black">
+      <div className="mb-6">
+        <h3 className="text-2xl md:text-3xl font-bold text-white">Live Interview</h3>
+        {/* <p className="text-neutral-400 mt-1">AI on the left, you on the right. Good luck!</p> */}
+      </div>
       <Agent
         userName={username}
         userId={userId}
         profileImage={profileImageURL}
         type="generate"
-      /> 
+        layout="split"
+        autoStart={autoStart}
+      />
     </div>
   );
 }
