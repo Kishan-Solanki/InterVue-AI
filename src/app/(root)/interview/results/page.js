@@ -68,8 +68,8 @@ export default function InterviewResults() {
         );
     }
 
-    const scoreColor = interview.feedback.totalScore >= 80 ? "text-green-600" :
-        interview.feedback.totalScore >= 60 ? "text-yellow-600" : "text-red-600";
+    const scoreColor = interview.feedback?.totalScore >= 80 ? "text-green-600" :
+        interview.feedback?.totalScore >= 60 ? "text-yellow-600" : "text-red-600";
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
@@ -82,7 +82,7 @@ export default function InterviewResults() {
                             {interview.role} • {interview.level} • {interview.type}
                         </p>
                         <div className={`text-6xl font-bold ${scoreColor} mt-4`}>
-                            {interview.feedback.totalScore}/100
+                            {interview.feedback?.totalScore || 0}/100
                         </div>
                     </div>
 
@@ -90,9 +90,16 @@ export default function InterviewResults() {
                     <div className="space-y-6">
                         <div>
                             <h2 className="text-xl font-semibold text-gray-800 mb-3">Overall Assessment</h2>
-                            <p className="text-gray-700 leading-relaxed">
-                                {interview.feedback.finalAssessment}
-                            </p>
+                            {interview.feedback?.finalAssessment ? (
+                                <p className="text-gray-700 leading-relaxed">
+                                    {interview.feedback.finalAssessment}
+                                </p>
+                            ) : (
+                                <div className="flex items-center space-x-2 text-gray-600">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                    <span>Assessment is being generated. Please refresh the page in a few moments.</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Strengths */}
@@ -135,22 +142,32 @@ export default function InterviewResults() {
                         <div>
                             <h2 className="text-xl font-semibold text-gray-800 mb-3">Your Answers</h2>
                             <div className="space-y-4">
-                                {interview.question_answers.map((qa, index) => (
-                                    <div key={index} className="border-l-4 border-blue-500 pl-4">
-                                        <h3 className="font-semibold text-gray-800 mb-2">
-                                            Q{index + 1}: {qa.question}
-                                        </h3>
-                                        <p className="text-gray-700 bg-gray-50 p-3 rounded">
-                                            {qa.answer || "No answer provided"}
-                                        </p>
-                                    </div>
-                                ))}
+                                {interview.question_answers?.length > 0 ? (
+                                    interview.question_answers.map((qa, index) => (
+                                        <div key={index} className="border-l-4 border-blue-500 pl-4">
+                                            <h3 className="font-semibold text-gray-800 mb-2">
+                                                Q{index + 1}: {qa.question}
+                                            </h3>
+                                            <p className="text-gray-700 bg-gray-50 p-3 rounded">
+                                                {qa.answer || "No answer provided"}
+                                            </p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-gray-500 italic">No questions and answers recorded yet.</p>
+                                )}
                             </div>
                         </div>
                     </div>
 
                     {/* Actions */}
                     <div className="flex justify-center space-x-4 mt-8">
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                        >
+                            Refresh Results
+                        </button>
                         <button
                             onClick={() => router.push("/dashboard")}
                             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"

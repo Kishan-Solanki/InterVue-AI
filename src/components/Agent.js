@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { vapi } from "@/lib/vapi.sdk";
 
@@ -68,27 +68,144 @@ const Agent = ({
 
     const onError = (error) => {
       console.error("VAPI Error occurred:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error constructor:", error?.constructor?.name);
+      console.error("Error keys:", error && typeof error === 'object' ? Object.keys(error) : 'N/A');
 
       // Handle different types of errors
       if (error && typeof error === 'object') {
-        const errorData = typeof error === 'string' ? JSON.parse(error) : error;
-
-        if (errorData.error?.type === 'ejected' || errorData.errorMsg?.includes('Meeting has ended')) {
-          console.log("Call was ejected, handling gracefully...");
-          if (!callEndedRef.current) {
-            callEndedRef.current = true;
-            setCallStatus(CallStatus.FINISHED);
+        // Check if error is empty object
+        if (Object.keys(error).length === 0) {
+          console.warn("Received empty error object from VAPI");
+          setErrorMessage("An unknown error occurred during the call");
+        } else {
+          // Try to parse if it's a string, otherwise use as is
+          let errorData;
+          try {
+            errorData = typeof error === 'string' ? JSON.parse(error) : error;
+          } catch (parseError) {
+            console.error("Failed to parse error:", parseError);
+            errorData = error;
           }
-          return;
-        }
 
-        // Handle other errors
-        setErrorMessage(errorData.errorMsg || "An error occurred during the call");
+          // Log VAPI error structure for debugging
+          console.error("VAPI Error Details:", {
+            type: errorData.type,
+            stage: errorData.stage,
+            error: errorData.error,
+            totalDuration: errorData.totalDuration,
+            timestamp: errorData.timestamp,
+            context: errorData.context
+          });
+
+          // Log context object details if it exists
+          if (errorData.context && typeof errorData.context === 'object') {
+            console.error("VAPI Error Context Details:", {
+              contextKeys: Object.keys(errorData.context),
+              contextStringified: JSON.stringify(errorData.context, null, 2)
+            });
+          }
+
+          // Check for specific error types based on VAPI error structure
+          if (errorData.type === 'ejected' || 
+              errorData.error?.type === 'ejected' || 
+              errorData.error?.message?.includes('Meeting has ended') ||
+              errorData.error?.message?.includes('call ended') ||
+              errorData.error?.message?.includes('Call ended')) {
+            console.log("Call was ejected or ended, handling gracefully...");
+            if (!callEndedRef.current) {
+              callEndedRef.current = true;
+              setCallStatus(CallStatus.FINISHED);
+            }
+            return;
+          }
+
+          // Handle VAPI-specific error messages with better categorization
+          let errorMessage = "An error occurred during the call";
+          let errorType = "unknown";
+          
+          // Determine error type and message
+          if (errorData.error?.message) {
+            errorMessage = errorData.error.message;
+            errorType = errorData.error.type || "api_error";
+          } else if (errorData.error?.type) {
+            errorType = errorData.error.type;
+            errorMessage = `VAPI Error: ${errorData.error.type}`;
+          } else if (errorData.type) {
+            errorType = errorData.type;
+            errorMessage = `VAPI Error: ${errorData.type}`;
+          } else if (errorData.stage) {
+            errorType = "stage_error";
+            errorMessage = `Error during ${errorData.stage}`;
+          }
+
+          // Handle specific VAPI error types
+          switch (errorType) {
+            case 'cors':
+              errorMessage = "CORS error: Please check your domain configuration in VAPI settings. Make sure your domain is whitelisted.";
+              console.error("CORS Error Details:", {
+                currentDomain: window.location.origin,
+                userAgent: navigator.userAgent,
+                context: errorData.context
+              });
+              console.error("CORS Resolution Steps:", {
+                step1: "1. Go to your VAPI dashboard",
+                step2: "2. Navigate to Settings > Web SDK",
+                step3: "3. Add your domain to the allowed origins list",
+                step4: "4. Make sure to include both http://localhost:3000 (for development) and your production domain",
+                step5: "5. Save the configuration and try again"
+              });
+              break;
+            case 'pipeline-error-custom-llm-llm-failed':
+              errorMessage = "AI model connection failed. Please try again.";
+              break;
+            case 'invalid_request_error':
+              errorMessage = "Invalid request configuration. Please check your settings.";
+              break;
+            case 'authentication_error':
+              errorMessage = "Authentication failed. Please check your API credentials.";
+              break;
+            case 'rate_limit_error':
+              errorMessage = "Rate limit exceeded. Please wait a moment and try again.";
+              break;
+            case 'network_error':
+              errorMessage = "Network connection failed. Please check your internet connection.";
+              break;
+            case 'timeout_error':
+              errorMessage = "Request timed out. Please try again.";
+              break;
+            case 'ejected':
+              // Already handled above, but just in case
+              if (!callEndedRef.current) {
+                callEndedRef.current = true;
+                setCallStatus(CallStatus.FINISHED);
+              }
+              return;
+            default:
+              // Keep the original error message
+              break;
+          }
+
+          // Add context information if available
+          if (errorData.context) {
+            errorMessage += ` (Context: ${errorData.context})`;
+          }
+
+          // Add stage information if available
+          if (errorData.stage && errorType !== "stage_error") {
+            errorMessage += ` (Stage: ${errorData.stage})`;
+          }
+
+          setErrorMessage(errorMessage);
+        }
       } else if (error instanceof Error) {
         console.error("VAPI Error:", error.message, error.stack);
         setErrorMessage(error.message);
+      } else if (typeof error === 'string') {
+        console.error("VAPI Error (string):", error);
+        setErrorMessage(error);
       } else {
-        console.error("VAPI Error (raw):", error);
+        console.error("VAPI Error (unknown type):", error);
         setErrorMessage("An unexpected error occurred");
       }
 
@@ -158,12 +275,111 @@ const Agent = ({
     };
 
     if (callStatus === CallStatus.FINISHED && !isProcessingFeedback) {
-      // Optionally persist at end (non-blocking)
-      handleGenerateFeedback(messages);
-      // Always return to dashboard after end per requirement
-      router.push("/dashboard");
+      console.log("Interview finished, processing feedback and redirecting...");
+      // Process feedback and then redirect
+      const processAndRedirect = async () => {
+        await handleGenerateFeedback(messages);
+        // Redirect to results page after feedback processing is complete
+        if (interviewId) {
+          console.log("Redirecting to results page with interview ID:", interviewId);
+          router.push(`/interview/results?id=${interviewId}`);
+        } else {
+          console.log("No interview ID, redirecting to dashboard");
+          router.push("/dashboard");
+        }
+      };
+      
+      processAndRedirect();
     }
   }, [messages, callStatus, interviewId, router, type, isProcessingFeedback]);
+
+  // Start call with Assistant
+  const handleCall = useCallback(async () => {
+    setCallStatus(CallStatus.CONNECTING);
+    setErrorMessage("");
+    callEndedRef.current = false;
+
+    try {
+      // Validate environment variables
+      if (!process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID) {
+        throw new Error("VAPI Assistant ID is not configured");
+      }
+
+      if (!process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN) {
+        throw new Error("VAPI Web Token is not configured");
+      }
+
+      // Check if VAPI is properly initialized
+      if (!vapi || typeof vapi.start !== 'function') {
+        throw new Error("VAPI is not properly initialized");
+      }
+
+      // Log environment details for CORS debugging
+      console.log("Environment Details:", {
+        currentDomain: window.location.origin,
+        protocol: window.location.protocol,
+        hostname: window.location.hostname,
+        port: window.location.port,
+        userAgent: navigator.userAgent,
+        isLocalhost: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+        isHttps: window.location.protocol === 'https:'
+      });
+
+      let assistantVariables = {
+        username: userName,
+        userid: userId
+      };
+
+      if (questions && questions.length > 0) {
+        assistantVariables.questions = questions.map((q) => `- ${q}`).join("\n");
+      }
+
+      console.log("Starting VAPI call with variables:", assistantVariables);
+      console.log("VAPI Assistant ID:", process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID);
+      console.log("VAPI Token configured:", !!process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN);
+      console.log("VAPI object:", vapi);
+      
+      await vapi.start(process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID, {
+        variableValues: assistantVariables,
+      });
+    } catch (err) {
+      console.error("Failed to start call:", err);
+      console.error("Error details:", {
+        message: err?.message,
+        name: err?.name,
+        stack: err?.stack,
+        type: typeof err,
+        constructor: err?.constructor?.name,
+        keys: err && typeof err === 'object' ? Object.keys(err) : 'N/A'
+      });
+      
+      setCallStatus(CallStatus.INACTIVE);
+      
+      // Handle empty error objects specifically
+      if (!err || (typeof err === 'object' && Object.keys(err).length === 0)) {
+        console.warn("Received empty error object from VAPI start");
+        setErrorMessage("Failed to start the interview call. Please check your VAPI configuration.");
+        return;
+      }
+      
+      // Provide more specific error messages
+      if (err?.message?.includes('Assistant ID') || err?.message?.includes('assistant')) {
+        setErrorMessage("VAPI configuration error: Invalid Assistant ID");
+      } else if (err?.message?.includes('token') || err?.message?.includes('auth') || err?.message?.includes('unauthorized')) {
+        setErrorMessage("VAPI authentication error: Please check your API token");
+      } else if (err?.message?.includes('network') || err?.message?.includes('fetch') || err?.message?.includes('connection')) {
+        setErrorMessage("Network error: Please check your internet connection");
+      } else if (err?.message?.includes('permission') || err?.message?.includes('forbidden')) {
+        setErrorMessage("Permission denied: Please check your VAPI account permissions");
+      } else if (err?.message?.includes('timeout')) {
+        setErrorMessage("Request timed out: Please try again");
+      } else if (err?.message?.includes('rate limit') || err?.message?.includes('quota')) {
+        setErrorMessage("Rate limit exceeded: Please wait a moment and try again");
+      } else {
+        setErrorMessage(`Failed to start the interview call: ${err?.message || 'Unknown error'}`);
+      }
+    }
+  }, [userName, userId, questions]);
 
   // Auto-start the call if requested
   useEffect(() => {
@@ -176,7 +392,7 @@ const Agent = ({
       }, 300);
       return () => clearTimeout(t);
     }
-  }, [autoStart, callStatus]);
+  }, [autoStart, callStatus, handleCall]);
 
   // Extract Q&A pairs from conversation messages
   const extractQAPairs = (messages) => {
@@ -285,32 +501,6 @@ const Agent = ({
     }
   };
 
-  // Start call with Assistant
-  const handleCall = async () => {
-    setCallStatus(CallStatus.CONNECTING);
-    setErrorMessage("");
-    callEndedRef.current = false;
-
-    try {
-      let assistantVariables = {
-        username: userName,
-        userid: userId
-      };
-
-      if (questions && questions.length > 0) {
-        assistantVariables.questions = questions.map((q) => `- ${q}`).join("\n");
-      }
-
-      await vapi.start(process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID, {
-        variableValues: assistantVariables,
-      });
-    } catch (err) {
-      console.error("Failed to start call:", err instanceof Error ? err.message : err);
-      setCallStatus(CallStatus.INACTIVE);
-      setErrorMessage("Failed to start the interview call");
-    }
-  };
-
   // End call
   const handleDisconnect = () => {
     if (!callEndedRef.current) {
@@ -324,8 +514,19 @@ const Agent = ({
       console.error("Failed to stop call:", err);
     }
 
-    // Redirect to dashboard per requirement
-    router.push('/dashboard');
+    // Fallback redirect after 5 seconds in case useEffect doesn't trigger
+    setTimeout(() => {
+      if (callStatus === CallStatus.FINISHED) {
+        console.log("Fallback redirect triggered");
+        if (interviewId) {
+          router.push(`/interview/results?id=${interviewId}`);
+        } else {
+          router.push("/dashboard");
+        }
+      }
+    }, 5000);
+
+    console.log("Call ended, feedback will be processed and then redirect to results page");
   };
 
   // Reset error state

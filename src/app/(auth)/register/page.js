@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,9 +19,6 @@ export default function RegisterPage() {
   });
 
   const [errors, setErrors] = useState({});
-  const [serverError, setServerError] = useState('');
-  const [warning, setWarning] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
@@ -39,7 +38,8 @@ export default function RegisterPage() {
     else if (!emailRegex.test(formData.email)) newErrors.email = 'Invalid email format';
 
     if (!formData.password) newErrors.password = 'Password is required';
-    if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (formData.password.length < 6)
+      newErrors.password = 'Password must be at least 6 characters';
     if (formData.password !== formData.confirmPassword)
       newErrors.confirmPassword = 'Passwords do not match';
 
@@ -49,15 +49,11 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setServerError('');
-    setWarning('');
-    if (!validate()) return;
+    if (!validate() || loading) return;
 
     const payload = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null) {
-        payload.append(key, value);
-      }
+      if (value !== null) payload.append(key, value);
     });
 
     setLoading(true);
@@ -65,10 +61,9 @@ export default function RegisterPage() {
       const res = await axios.post('/api/auth/sign-up', payload);
 
       if (res.data.success) {
-        setSuccessMessage(res.data.message || 'Registered successfully!');
-        if (res.data.warning) {
-          setWarning(res.data.warning);
-        }
+        toast.success(res.data.message || 'Registered successfully!');
+        if (res.data.warning) toast.warning(res.data.warning);
+
         setTimeout(() => {
           router.push('/verifyemail');
         }, 2000);
@@ -79,97 +74,146 @@ export default function RegisterPage() {
           error.response?.data?.message ||
           error.response?.data?.error ||
           'Something went wrong. Please try again.';
-        setServerError(message);
+        toast.error(message);
       } else {
-        setServerError('Unexpected error. Please try again.');
+        toast.error('Unexpected error. Please try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    let timer;
-    if (successMessage) {
-      timer = setTimeout(() => setSuccessMessage(''), 4000);
-    }
-    return () => clearTimeout(timer);
-  }, [successMessage]);
-
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-green-800 p-6">
-      <div className="bg-black bg-opacity-40 p-8 rounded-xl shadow-xl w-full max-w-md text-white">
-        <h1 className="text-3xl font-bold text-center mb-6">Register</h1>
+    <main className="relative min-h-screen flex items-center justify-center bg-black/90 text-white px-4">
+      <div className="absolute inset-0 -z-10 bg-black/70" />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            className="w-full p-3 rounded bg-gray-800 text-white"
-            onChange={handleInputChange}
-          />
-          {errors.username && <p className="text-red-400">{errors.username}</p>}
+      <motion.div
+        className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full max-w-md"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-teal-400 via-cyan-500 to-blue-500 bg-clip-text text-transparent">
+          Create an Account
+        </h1>
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            className="w-full p-3 rounded bg-gray-800 text-white"
-            onChange={handleInputChange}
-          />
-          {errors.email && <p className="text-red-400">{errors.email}</p>}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Username */}
+          <div>
+            <input
+              type="text"
+              name="username"
+              placeholder="Username"
+              value={formData.username}
+              onChange={handleInputChange}
+              disabled={loading}
+              className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${
+                errors.username ? 'border-red-500' : 'border-white/20'
+              } focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50`}
+            />
+            {errors.username && (
+              <p className="text-red-400 text-sm mt-1">{errors.username}</p>
+            )}
+          </div>
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            className="w-full p-3 rounded bg-gray-800 text-white"
-            onChange={handleInputChange}
-          />
-          {errors.password && <p className="text-red-400">{errors.password}</p>}
+          {/* Email */}
+          <div>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={handleInputChange}
+              disabled={loading}
+              className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${
+                errors.email ? 'border-red-500' : 'border-white/20'
+              } focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50`}
+            />
+            {errors.email && (
+              <p className="text-red-400 text-sm mt-1">{errors.email}</p>
+            )}
+          </div>
 
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm Password"
-            className="w-full p-3 rounded bg-gray-800 text-white"
-            onChange={handleInputChange}
-          />
-          {errors.confirmPassword && (
-            <p className="text-red-400">{errors.confirmPassword}</p>
-          )}
+          {/* Password */}
+          <div>
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleInputChange}
+              disabled={loading}
+              className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${
+                errors.password ? 'border-red-500' : 'border-white/20'
+              } focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50`}
+            />
+            {errors.password && (
+              <p className="text-red-400 text-sm mt-1">{errors.password}</p>
+            )}
+          </div>
 
-          <input
-            type="file"
-            name="profileImage"
-            accept="image/*"
-            className="w-full p-3 rounded bg-gray-800 text-white"
-            onChange={handleInputChange}
-          />
+          {/* Confirm Password */}
+          <div>
+            <input
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              disabled={loading}
+              className={`w-full px-4 py-2 rounded-lg bg-black/60 text-white border ${
+                errors.confirmPassword ? 'border-red-500' : 'border-white/20'
+              } focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50`}
+            />
+            {errors.confirmPassword && (
+              <p className="text-red-400 text-sm mt-1">
+                {errors.confirmPassword}
+              </p>
+            )}
+          </div>
 
-          <button
+          {/* Profile Image */}
+          <div>
+            <input
+              type="file"
+              name="profileImage"
+              accept="image/*"
+              onChange={handleInputChange}
+              disabled={loading}
+              className="w-full px-4 py-2 rounded-lg bg-black/60 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
+            />
+          </div>
+
+          {/* Submit Button */}
+          <motion.button
             type="submit"
+            whileHover={{
+              scale: !loading ? 1.05 : 1,
+            }}
+            whileTap={{
+              scale: !loading ? 0.95 : 1,
+            }}
             disabled={loading}
-            className="w-full p-3 rounded bg-green-600 hover:bg-green-700 transition"
+            className="w-full bg-gradient-to-r from-teal-500 to-blue-600 py-3 rounded-xl font-semibold text-white shadow-lg hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all duration-200"
           >
-            {loading ? 'Registering...' : 'Register'}
-          </button>
+            {loading ? (
+              <>
+                <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                Registering...
+              </>
+            ) : (
+              'Register'
+            )}
+          </motion.button>
         </form>
 
-        {serverError && <p className="text-red-400 mt-4 text-center">{serverError}</p>}
-        {warning && <p className="text-yellow-400 mt-4 text-center">{warning}</p>}
-        {successMessage && (
-          <p className="text-green-400 mt-4 text-center">{successMessage}</p>
-        )}
-
-        <p className="mt-6 text-center">
+        <p className="text-center text-sm text-white/70 mt-6">
           Already have an account?{' '}
-          <Link href="/login" className="text-blue-300 hover:underline">
+          <Link href="/login" className="text-cyan-400 hover:underline">
             Login here
           </Link>
         </p>
-      </div>
+      </motion.div>
     </main>
   );
 }

@@ -48,12 +48,12 @@ export default function Navbar() {
     const navItems = isAuthenticated
         ? [
             { label: "Home", href: "/" },
-            { label: "About", href: "#" },
+            { label: "About", href: "/about" },
             { label: "Dashboard", href: "/dashboard" },
         ]
         : [
             { label: "Home", href: "/" },
-            { label: "About", href: "#" },
+            { label: "About", href: "/about" },
         ];
 
     return (
