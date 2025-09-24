@@ -18,6 +18,8 @@ import { BackgroundBeamsWithCollision } from '@/app/component/comps/BackgroundBe
 const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [interviews, setInterviews] = useState([]);
+  const [isLoadingInterviews, setIsLoadingInterviews] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -29,6 +31,19 @@ const Dashboard = () => {
         }
         const data = await res.json();
         setUser(data);
+        // After getting user, load their interviews
+        setIsLoadingInterviews(true);
+        try {
+          const r = await fetch(`/api/user/get-interview-data?userid=${data.id}`);
+          if (r.ok) {
+            const j = await r.json();
+            setInterviews(Array.isArray(j.data) ? j.data : []);
+          }
+        } catch (e) {
+          console.error('Error fetching interviews:', e);
+        } finally {
+          setIsLoadingInterviews(false);
+        }
       } catch (err) {
         console.error('Error fetching user:', err);
         router.push('/login');
@@ -94,7 +109,7 @@ const Dashboard = () => {
         {/* Header */}
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-white">{getGreeting()}, {user.username}!</h1>
-          <p className="text-neutral-400 mt-1">Ready to ace your next interview? Let's get started.</p>
+          <p className="text-neutral-400 mt-1">Ready to ace your next interview? Let&apos;s get started.</p>
         </header>
 
         {/* Main Content Grid */}
@@ -160,10 +175,44 @@ const Dashboard = () => {
                     <IconHistory size={24} className="text-cyan-400" />
                     <p className="text-sm text-neutral-300">Interviews Completed</p>
                   </div>
-                  <p className="text-2xl font-bold mt-2">14</p>
+                <p className="text-2xl font-bold mt-2">{interviews.length}</p>
                 </div>
               </div>
             </div>
+
+          {/* Interviews History */}
+          <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Your Interviews</h3>
+              {isLoadingInterviews && (
+                <span className="text-xs text-neutral-400">Loading...</span>
+              )}
+            </div>
+            {(!isLoadingInterviews && interviews.length === 0) ? (
+              <p className="text-neutral-400 mt-4">No interviews yet. Start one to see it here.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {interviews.map((iv) => (
+                  <div key={iv._id} className="rounded-lg border border-slate-700 bg-slate-900/40 p-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-white font-semibold">{iv.role || 'Interview'}</h4>
+                      <span className="text-xs text-neutral-400">{new Date(iv.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="mt-2 text-sm text-neutral-300">
+                      <p>Level: <span className="text-neutral-200 font-medium">{iv.level || '—'}</span></p>
+                      <p>Type: <span className="text-neutral-200 font-medium">{iv.type || '—'}</span></p>
+                      <p>Score: <span className="text-neutral-200 font-medium">{iv?.feedback?.totalScore ?? 0}/100</span></p>
+                    </div>
+                    <div className="mt-3">
+                      <Link href={`/interview/results/${iv._id}`} className="inline-block px-4 py-2 bg-cyan-500 text-black font-semibold rounded-md hover:bg-cyan-400 transition-colors">
+                        View Results
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           </div>
         </main>
       </div>
