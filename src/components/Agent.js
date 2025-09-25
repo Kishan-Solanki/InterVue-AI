@@ -33,6 +33,7 @@ const Agent = ({
   const [isProcessingFeedback, setIsProcessingFeedback] = useState(false)
   const [createdInterviewId, setCreatedInterviewId] = useState(null)
   const callEndedRef = useRef(false)
+  const hasInterviewBeenSavedRef = useRef(false)
 
   // New: Live Q&A and insights
   const [qaPairsState, setQaPairsState] = useState([])
@@ -238,6 +239,14 @@ const Agent = ({
 
   // Handle feedback generation or redirect when call finishes
   useEffect(() => {
+    console.log(
+      "[v0] useEffect for saving interview triggered. callStatus:",
+      callStatus,
+      "isProcessingFeedback:",
+      isProcessingFeedback,
+      "hasInterviewBeenSavedRef.current:",
+      hasInterviewBeenSavedRef.current,
+    )
     if (messages.length > 0) {
       setLastMessage(messages[messages.length - 1].content)
     }
@@ -251,7 +260,12 @@ const Agent = ({
     setRecommendations(r)
 
     const handleSaveInterview = async (messages) => {
-      if (isProcessingFeedback) return
+      if (isProcessingFeedback || hasInterviewBeenSavedRef.current) {
+        console.log(
+          "[v0] handleSaveInterview called but prevented due to isProcessingFeedback or hasInterviewBeenSavedRef.current",
+        )
+        return
+      }
 
       setIsProcessingFeedback(true)
       console.log("[v0] Saving complete interview with", messages.length, "messages")
@@ -272,7 +286,7 @@ const Agent = ({
             role: "Software Developer",
             level: "Medium",
             company: "",
-            techstack: "",
+            techstack: [],
             qaPairs,
             strengths,
             improvements,
@@ -311,13 +325,14 @@ const Agent = ({
           }
 
           const data = JSON.parse(responseText)
-          const savedInterviewId = data.interview._id
+          const savedInterviewId = data.interviewId // Corrected to data.interviewId as per backend response
           setCreatedInterviewId(savedInterviewId)
+          hasInterviewBeenSavedRef.current = true
 
           console.log("[v0] Interview saved successfully with ID:", savedInterviewId)
 
           // Redirect to results page
-          router.push(`/interview/results?id=${savedInterviewId}`)
+          router.push(`/interview/results/${savedInterviewId}`)
         } else {
           console.log("[v0] No Q&A pairs found")
         }
@@ -330,8 +345,8 @@ const Agent = ({
       }
     }
 
-    if (callStatus === CallStatus.FINISHED && !isProcessingFeedback) {
-      console.log("Interview finished, saving complete interview data...")
+    if (callStatus === CallStatus.FINISHED && !isProcessingFeedback && !hasInterviewBeenSavedRef.current) {
+      console.log("[v0] Interview finished, saving complete interview data...")
       handleSaveInterview(messages)
     }
   }, [messages, callStatus, userId, type, router, isProcessingFeedback])
@@ -528,6 +543,8 @@ const Agent = ({
     setErrorMessage("")
     setMessages([])
     callEndedRef.current = false
+    // Reset the saved interview flag when retrying
+    hasInterviewBeenSavedRef.current = false
   }
 
   // Highlight helper classes
