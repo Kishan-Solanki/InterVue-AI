@@ -60,6 +60,7 @@ const Agent = ({
 
     const onMessage = (message) => {
       if (message.type === "transcript" && message.transcriptType === "final") {
+        // This ensures all user speech segments are captured, even with pauses
         const newMessage = { role: message.role, content: message.transcript }
         setMessages((prev) => [...prev, newMessage])
       }
@@ -466,21 +467,34 @@ const Agent = ({
   const extractQAPairs = (messages) => {
     const qaPairs = []
     let currentQuestion = ""
+    let currentAnswerParts = []
 
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i]
 
       if (message.role === "assistant") {
-        // This is likely a question from the AI
+        // Save previous Q&A pair if we have accumulated answer parts
+        if (currentQuestion && currentAnswerParts.length > 0) {
+          qaPairs.push({
+            question: currentQuestion,
+            answer: currentAnswerParts.join(" "),
+          })
+          currentAnswerParts = []
+        }
+        // Start new question
         currentQuestion = message.content
-      } else if (message.role === "user" && currentQuestion) {
-        // This is the user's answer to the current question
-        qaPairs.push({
-          question: currentQuestion,
-          answer: message.content,
-        })
-        currentQuestion = ""
+      } else if (message.role === "user") {
+        // Accumulate user responses (handles pauses in speech)
+        currentAnswerParts.push(message.content)
       }
+    }
+
+    // Don't forget the last Q&A pair
+    if (currentQuestion && currentAnswerParts.length > 0) {
+      qaPairs.push({
+        question: currentQuestion,
+        answer: currentAnswerParts.join(" "),
+      })
     }
 
     return qaPairs
