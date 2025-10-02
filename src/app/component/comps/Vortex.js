@@ -230,6 +230,7 @@ export const Vortex = (props) => {
                 cancelAnimationFrame(animationFrameId.current);
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
