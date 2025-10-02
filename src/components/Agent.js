@@ -446,7 +446,7 @@ const Agent = ({
         setErrorMessage(`Failed to start the interview call: ${err?.message || "Unknown error"}`)
       }
     }
-  }, [userName, userId, questions, type])
+  }, [userName, userId, questions])
 
   // Auto-start the call if requested
   useEffect(() => {

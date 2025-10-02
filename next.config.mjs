@@ -4,10 +4,5 @@ const nextConfig = {
     domains: ['res.cloudinary.com'],
   },
 };
-module.exports = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-}
 
 export default nextConfig;
