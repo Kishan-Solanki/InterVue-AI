@@ -9,7 +9,7 @@ export async function POST(request) {
     await connect()
 
     const body = await request.json()
-    const { userId, type, role, level, company, techstack, qaPairs, strengths, improvements, recommendations } = body
+    const { userId, type, role, level, company, techstack, qaPairs, strengths, improvements, recommendations,nervousness_score, } = body
 
     if (!userId) return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     if (!qaPairs || !Array.isArray(qaPairs) || qaPairs.length === 0)
@@ -30,6 +30,7 @@ export async function POST(request) {
       company: company || "",
       techstack: techstack || [],
       question_answers: qaPairs,
+      nervousness_score,
     })
 
     // Create interview document

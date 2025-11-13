@@ -142,21 +142,29 @@ const Dashboard = () => {
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
               <h3 className="text-lg font-semibold text-white">Ready for your next challenge?</h3>
               <p className="text-neutral-400 mt-1 mb-4 text-sm">Select an interview type and start practicing right away.</p>
-              <Link
-                href={{
-                  pathname: '/interview',
-                  query: {
-                    userId: user.id,
-                    username: user.username,
-                    profileImageURL: user.profileImageURL,
-                    start: '1',
-                  },
-                }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-500 text-black font-bold rounded-lg hover:bg-cyan-400 transition-colors duration-200"
-              >
-                <IconMicrophone size={20} />
-                Start Call
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={{
+                    pathname: '/interview',
+                    query: {
+                      userId: user.id,
+                      username: user.username,
+                      profileImageURL: user.profileImageURL,
+                      start: '1',
+                    },
+                  }}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-500 text-black font-bold rounded-lg hover:bg-cyan-400 transition-colors duration-200"
+                >
+                  <IconMicrophone size={20} />
+                  Start Call
+                </Link>
+                <Link
+                  href="/growth"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-slate-700 text-white font-semibold rounded-lg border border-slate-600 hover:bg-slate-600 transition-colors duration-200"
+                >
+                  My Growth
+                </Link>
+              </div>
             </div>
 
             {/* Stats Card */}
