@@ -14,7 +14,8 @@ warnings.filterwarnings("ignore")
 # ---------------------------
 # Update this to where you extracted the Kaggle dataset
 # It should contain folders like "RAVDESS" and "TESS"
-DATASET_PATH = "C://Users//Kishan Solanki//OneDrive//Desktop//Intervue//nervesness_model//DATA"
+# DATASET_PATH = "C://Users//Kishan Solanki//OneDrive//Desktop//Intervue//nervesness_model//DATA"
+DATASET_PATH = "D://Sem 7//sem7//InterVue-AI//nervesness_model//DATA"
 
 # Emotions mapping (RAVDESS)
 RAVDESS_EMOTION_MAP = {
