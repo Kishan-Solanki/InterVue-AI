@@ -1,9 +1,29 @@
 "use client";
 
+import { FloatingDock } from "@/app/component/comps/FloatingDock ";
 import { motion } from "framer-motion";
 import { Sparkles, Brain, GraduationCap, Users } from "lucide-react";
+import {
+  IconBrandGithub, IconHome, IconLogout, IconMicrophone,
+  IconReportAnalytics, IconHistory,
+} from "@tabler/icons-react";
 
 export default function AboutPage() {
+  const links = [
+    { title: "Home", icon: <IconHome className="h-full w-full" />, href: "/" },
+    { title: "GitHub", icon: <IconBrandGithub className="h-full w-full" />, href: "https://github.com/Kishan-Solanki/InterVue-AI" },
+    { title: "Logout", icon: <IconLogout className="h-full w-full" />, onClick: handleLogout },
+  ];
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout');
+      router.push('/login');
+    } catch (err) {
+      console.error('Error during logout:', err);
+    }
+  };
+  
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white px-6 py-16 overflow-hidden">
       {/* Background Glows */}
@@ -102,6 +122,9 @@ export default function AboutPage() {
           guiding you to success in placements, assessments, and beyond.
         </p>
       </motion.div>
+      <div className="fixed bottom-4 left-0 w-fit bg-red-400  z-50 text-black">
+        <FloatingDock items={links} />
+      </div>
 
       {/* Gradient animation styles */}
       <style jsx>{`
@@ -131,6 +154,7 @@ export default function AboutPage() {
           }
         }
       `}</style>
+
     </main>
   );
 }
