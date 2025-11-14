@@ -7,6 +7,10 @@ const interviewSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    audio_link: {
+      type: String,
+      default: "",
+    },
     role: {
       type: String,
       required: true,

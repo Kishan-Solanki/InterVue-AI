@@ -41,22 +41,77 @@ const Agent = ({
   const [improvements, setImprovements] = useState([])
   const [recommendations, setRecommendations] = useState([])
 
+  //audio 
+  const [audioChunks, setAudioChunks] = useState([])
+  const mediaRecorderRef = useRef(null)
+  const [nervousnessScore, setNervousnessScore] = useState(0)
+
   // Event handlers
   useEffect(() => {
     const onCallStart = () => {
-      console.log("Call started successfully")
-      setCallStatus(CallStatus.ACTIVE)
-      setErrorMessage("")
-      callEndedRef.current = false
-    }
+      console.log("Call started successfully");
+      setCallStatus(CallStatus.ACTIVE);
+
+      console.log("🎙️ Starting background recording...");
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+        recorder.chunks = []; // 👈 store chunks on recorder itself
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recorder.chunks.push(e.data);
+        };
+
+        recorder.start();
+        console.log("🎧 Recorder started:", recorder.state);
+      });
+
+      setErrorMessage("");
+      callEndedRef.current = false;
+    };
+
 
     const onCallEnd = () => {
-      console.log("Call ended normally")
+      console.log("Call ended normally");
       if (!callEndedRef.current) {
-        callEndedRef.current = true
-        setCallStatus(CallStatus.FINISHED)
+        callEndedRef.current = true;
+        setCallStatus(CallStatus.FINISHED);
+
+        // ✅ Stop and upload background recording
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+          console.log("🛑 Stopping MediaRecorder and uploading...");
+          mediaRecorderRef.current.stop();
+
+          // Wait a moment for chunks to flush
+          setTimeout(async () => {
+            const chunks = mediaRecorderRef.current.chunks || [];
+            if (chunks.length === 0) {
+              console.warn("⚠️ No audio chunks captured!");
+              return;
+            }
+
+            const blob = new Blob(chunks, { type: "audio/webm" });
+            const formData = new FormData();
+            formData.append("file", blob, "interview_audio.webm");
+
+            try {
+              const res = await fetch("http://localhost:5000/analyze", {
+                method: "POST",
+                body: formData,
+              });
+              const data = await res.json();
+              console.log("✅ Nervousness score from Flask:", data);
+              setNervousnessScore(data.nervousness_score);
+            } catch (err) {
+              console.error("❌ Flask fetch error:", err);
+            }
+          }, 1000);
+        } else {
+          console.warn("⚠️ MediaRecorder inactive at call end");
+        }
       }
-    }
+    };
+
 
     const onMessage = (message) => {
       if (message.type === "transcript" && message.transcriptType === "final") {
@@ -292,6 +347,7 @@ const Agent = ({
             strengths,
             improvements,
             recommendations,
+            nervousness_score: nervousnessScore,
           }
 
           console.log("[v0] Sending request to save-interview API:", JSON.stringify(requestBody, null, 2))
@@ -456,7 +512,7 @@ const Agent = ({
         if (!callEndedRef.current) {
           try {
             handleCall()
-          } catch (_) {}
+          } catch (_) { }
         }
       }, 300)
       return () => clearTimeout(t)

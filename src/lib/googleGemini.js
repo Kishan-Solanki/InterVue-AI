@@ -1,21 +1,31 @@
 const apiKey =process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-export async function generateFeedbackWithGemini({ role, level, type, company, techstack, question_answers }) {
+export async function generateFeedbackWithGemini({ role, level, type, company, techstack, question_answers,nervousness_score }) {
   const model = "gemini-2.5-flash-preview-05-20";
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const prompt = `
-    You are an AI interview evaluator. Analyze the following interview details and provide structured feedback.
-    
-    Role: ${role}
-    Level: ${level}
-    Type: ${type}
-    Company: ${company}
-    Tech Stack: ${techstack.join(", ")}
+  You are an AI interview evaluator. Analyze the following interview details and provide structured, professional feedback.
 
-    Questions and Answers:
-    ${question_answers.map((qa, idx) => `${idx + 1}. Q: ${qa.question}\nA: ${qa.answer}`).join("\n\n")}
-  `;
+  Role: ${role}
+  Level: ${level}
+  Type: ${type}
+  Company: ${company}
+  Tech Stack: ${techstack.join(", ")}
+
+  Questions and Answers (including any Viva session data if available):
+  ${question_answers.map((qa, idx) => `${idx + 1}. Q: ${qa.question}\nA: ${qa.answer}`).join("\n\n")}
+
+  Nervousness Score: ${nervousness_score}
+
+  Based on the above information, provide a comprehensive evaluation covering:
+  - Technical knowledge and understanding of the tech stack.
+  - Communication clarity and confidence.
+  - Problem-solving and reasoning ability.
+  - Behavior and confidence indicators (use the nervousness score as a factor).
+  - If any viva or oral examination data is present, evaluate it based on the Q&A quality and depth of understanding.
+  - Provide structured feedback with strengths, weaknesses, and suggestions for improvement.
+`;
 
   const responseSchema = {
     type: "OBJECT",
