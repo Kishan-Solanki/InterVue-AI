@@ -6,6 +6,8 @@ import os
 import tempfile
 from flask_cors import CORS
 import soundfile as sf
+import subprocess
+from pydub import AudioSegment
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -25,93 +27,118 @@ scaler = model_data["scaler"]
 print(f"✅ Model expects {scaler.n_features_in_} features")
 
 # ------------------------------
+# Audio Conversion Function
+# ------------------------------
+
+def convert_to_wav(input_path):
+    """Convert audio file to WAV format using pydub (which uses ffmpeg internally)"""
+    try:
+        wav_path = input_path.rsplit('.', 1)[0] + '_converted.wav'
+        
+        print(f"🔄 Converting {input_path} to WAV format...")
+        
+        # Use pydub to convert (automatically handles ffmpeg)
+        audio = AudioSegment.from_file(input_path)
+        audio = audio.set_frame_rate(22050).set_channels(1)  # 22050 Hz, mono
+        audio.export(wav_path, format="wav")
+        
+        print(f"✅ Conversion successful: {wav_path}")
+        return wav_path
+        
+    except Exception as e:
+        print(f"❌ Audio conversion failed: {str(e)}")
+        raise Exception(
+            f"Audio conversion failed. Make sure FFmpeg is installed and in PATH.\n"
+            f"Error: {str(e)}"
+        )
+
+# ------------------------------
 # Feature Extraction Function
 # ------------------------------
 
 def extract_features(path):
     """Extract audio features for nervousness detection - MUST match training features."""
+    wav_path = None
     try:
-        print(f"🎵 Loading audio file: {path}")
-        y, sr = librosa.load(path, sr=22050)
+        # Convert to WAV if needed
+        if path.lower().endswith(('.webm', '.mp4', '.m4a', '.ogg')):
+            wav_path = convert_to_wav(path)
+            audio_path = wav_path
+        else:
+            audio_path = path
+        
+        print(f"🎵 Loading audio file: {audio_path}")
+        # Match training: duration=3, offset=0.5
+        y, sr = librosa.load(audio_path, sr=22050, duration=3, offset=0.5)
         
         if len(y) == 0:
             raise ValueError("Audio file is empty or unreadable")
         
         print(f"✅ Audio loaded successfully: {len(y)} samples at {sr} Hz")
 
-        # Extract all features that match your training
-        features = []
+        # EXACTLY match training feature extraction
         
         # 1. MFCC (13 coefficients) - Mean across time
         mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
         mfcc_mean = np.mean(mfcc, axis=1)
-        features.extend(mfcc_mean)
         print(f"✅ MFCC features: {len(mfcc_mean)}")
         
-        # 2. MFCC Delta (13 coefficients) - Mean across time
-        mfcc_delta = librosa.feature.delta(mfcc)
-        mfcc_delta_mean = np.mean(mfcc_delta, axis=1)
-        features.extend(mfcc_delta_mean)
-        print(f"✅ MFCC Delta features: {len(mfcc_delta_mean)}")
-        
-        # 3. Zero Crossing Rate
-        zcr = np.mean(librosa.feature.zero_crossing_rate(y))
-        features.append(zcr)
-        print(f"✅ ZCR: {zcr}")
-        
-        # 4. RMS Energy
-        rms = np.mean(librosa.feature.rms(y=y))
-        features.append(rms)
-        print(f"✅ RMS: {rms}")
-        
-        # 5. Spectral Centroid
-        spectral_centroid = np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
-        features.append(spectral_centroid)
-        print(f"✅ Spectral Centroid: {spectral_centroid}")
-        
-        # 6. Spectral Rolloff
-        spectral_rolloff = np.mean(librosa.feature.spectral_rolloff(y=y, sr=sr))
-        features.append(spectral_rolloff)
-        print(f"✅ Spectral Rolloff: {spectral_rolloff}")
-        
-        # 7. Spectral Bandwidth
-        spectral_bandwidth = np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr))
-        features.append(spectral_bandwidth)
-        print(f"✅ Spectral Bandwidth: {spectral_bandwidth}")
-        
-        # 8. Tempo (beat tracking)
-        try:
-            tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-            # Convert tempo to scalar - it may be returned as an array
-            tempo_value = float(tempo) if isinstance(tempo, (int, float)) else float(tempo[0])
-            features.append(tempo_value)
-            print(f"✅ Tempo: {tempo_value}")
-        except:
-            features.append(120.0)  # Default tempo
-            print("⚠️ Tempo detection failed, using default: 120.0")
-        
-        # 9. Chroma features (12 pitch classes) - Mean across time
+        # 2. Chroma (12 pitch classes) - Mean across time
         chroma = librosa.feature.chroma_stft(y=y, sr=sr)
         chroma_mean = np.mean(chroma, axis=1)
-        features.extend(chroma_mean)
         print(f"✅ Chroma features: {len(chroma_mean)}")
         
-        features_array = np.array(features)
-        print(f"✅ Total features extracted: {len(features_array)}")
+        # 3. Spectral Contrast (7 bands by default) - Mean across time
+        contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
+        contrast_mean = np.mean(contrast, axis=1)
+        print(f"✅ Spectral Contrast features: {len(contrast_mean)}")
+        
+        # 4. Zero Crossing Rate
+        zcr = np.mean(librosa.feature.zero_crossing_rate(y))
+        print(f"✅ ZCR: {zcr}")
+        
+        # 5. RMS Energy
+        rms = np.mean(librosa.feature.rms(y=y))
+        print(f"✅ RMS: {rms}")
+        
+        # 6. Pitch (Fundamental Frequency)
+        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+        pitch_mean = np.mean(pitches[pitches > 0]) if np.any(pitches > 0) else 0
+        print(f"✅ Pitch Mean: {pitch_mean}")
+        
+        # Concatenate all features in the SAME ORDER as training
+        features = np.concatenate([
+            mfcc_mean,      # 13 features
+            chroma_mean,    # 12 features
+            contrast_mean,  # 7 features
+            [zcr, rms, pitch_mean]  # 3 features
+        ])
+        
+        print(f"✅ Total features extracted: {len(features)}")
         print(f"   Expected by model: {scaler.n_features_in_}")
+        print(f"   Breakdown: MFCC(13) + Chroma(12) + Contrast(7) + Others(3) = {13+12+7+3}")
         
         # Verify feature count matches
-        if len(features_array) != scaler.n_features_in_:
+        if len(features) != scaler.n_features_in_:
             raise ValueError(
-                f"Feature mismatch! Extracted {len(features_array)} features, "
+                f"Feature mismatch! Extracted {len(features)} features, "
                 f"but model expects {scaler.n_features_in_} features"
             )
         
-        return features_array
+        return features
         
     except Exception as e:
         print(f"❌ Feature extraction error: {e}")
         raise
+    
+    finally:
+        # Clean up converted WAV file
+        if wav_path and os.path.exists(wav_path):
+            try:
+                os.remove(wav_path)
+                print(f"🗑️ Cleaned up converted file: {wav_path}")
+            except Exception as e:
+                print(f"⚠️ Could not delete converted file: {e}")
 
 # ------------------------------
 # Default Route
@@ -121,7 +148,8 @@ def extract_features(path):
 def home():
     return jsonify({
         "message": "Nervousness Detection API Running",
-        "expected_features": int(scaler.n_features_in_)
+        "expected_features": int(scaler.n_features_in_),
+        "supported_formats": [".webm", ".wav", ".mp3", ".m4a", ".ogg"]
     }), 200
 
 # ------------------------------
@@ -150,6 +178,12 @@ def analyze():
     # Save audio file temporarily
     file = request.files["file"]
     
+    # Log frontend data
+    print("\n" + "🌐 FRONTEND DATA:")
+    print(f"   📄 Filename: {file.filename}")
+    print(f"   📦 Content Type: {file.content_type}")
+    print(f"   🔍 File Object: {file}")
+    
     # Use proper file extension
     file_ext = ".webm"
     if file.filename:
@@ -161,8 +195,9 @@ def analyze():
         file.save(tmp.name)
         temp_path = tmp.name
 
-    print(f"💾 File saved to: {temp_path}")
+    print(f"\n💾 File saved to: {temp_path}")
     print(f"📊 File size: {os.path.getsize(temp_path)} bytes")
+    print(f"✅ Data from frontend received perfectly!")
 
     try:
         # Extract features
@@ -212,5 +247,6 @@ if __name__ == "__main__":
     print(f"📍 Running on http://localhost:5000")
     print(f"📍 Network: http://0.0.0.0:5000")
     print(f"🎯 Model expects {scaler.n_features_in_} features")
+    print(f"🎵 Supported formats: WebM, WAV, MP3, M4A, OGG")
     print("="*50 + "\n")
     app.run(host="0.0.0.0", port=5000, debug=True)
