@@ -7,14 +7,12 @@ import {
   IconBrandGithub, IconHome, IconLogout, IconMicrophone,
   IconReportAnalytics, IconHistory,
 } from "@tabler/icons-react";
+import { useRouter } from "next/navigation";
 
 export default function AboutPage() {
-  const links = [
-    { title: "Home", icon: <IconHome className="h-full w-full" />, href: "/" },
-    { title: "GitHub", icon: <IconBrandGithub className="h-full w-full" />, href: "https://github.com/Kishan-Solanki/InterVue-AI" },
-    { title: "Logout", icon: <IconLogout className="h-full w-full" />, onClick: handleLogout },
-  ];
+  const router = useRouter();
 
+  // Define handleLogout BEFORE using it in links array
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout');
@@ -23,6 +21,12 @@ export default function AboutPage() {
       console.error('Error during logout:', err);
     }
   };
+
+  const links = [
+    { title: "Home", icon: <IconHome className="h-full w-full" />, href: "/" },
+    { title: "GitHub", icon: <IconBrandGithub className="h-full w-full" />, href: "https://github.com/Kishan-Solanki/InterVue-AI" },
+    { title: "Logout", icon: <IconLogout className="h-full w-full" />, onClick: handleLogout },
+  ];
   
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white px-6 py-16 overflow-hidden">
@@ -117,7 +121,7 @@ export default function AboutPage() {
       >
         <p className="text-gray-400 max-w-2xl mx-auto leading-relaxed text-lg">
           <span className="font-semibold text-cyan-400">IntervueAI</span> is
-          more than a tool – it’s your{" "}
+          more than a tool – it&apos;s your{" "}
           <span className="text-white font-bold">AI-powered mentor</span>,
           guiding you to success in placements, assessments, and beyond.
         </p>
