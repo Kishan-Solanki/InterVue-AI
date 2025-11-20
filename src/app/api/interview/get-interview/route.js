@@ -37,6 +37,7 @@ export async function GET(request) {
       },
       createdAt: interview.createdAt,
       user: interview.userId,
+      nervousness_score: interview.nervousness_score || 0,
     }
 
     return NextResponse.json({

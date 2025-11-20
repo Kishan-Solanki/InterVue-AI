@@ -53,6 +53,7 @@ export async function POST(request) {
         improvements: feedback.improvements || improvements || [],
         recommendations: feedback.recommendations || recommendations || [],
       },
+      nervousness_score: nervousness_score || 0,  
     }
 
     const interview = new Interview(interviewData)

@@ -34,7 +34,6 @@ const Agent = ({
   const [createdInterviewId, setCreatedInterviewId] = useState(null)
   const callEndedRef = useRef(false)
   const hasInterviewBeenSavedRef = useRef(false)
-
   // New: Live Q&A and insights
   const [qaPairsState, setQaPairsState] = useState([])
   const [strengths, setStrengths] = useState([])
@@ -44,7 +43,54 @@ const Agent = ({
   //audio 
   const [audioChunks, setAudioChunks] = useState([])
   const mediaRecorderRef = useRef(null)
-  const [nervousnessScore, setNervousnessScore] = useState(0)
+  const [nervousnessScore, setNervousnessScore] = useState(null)
+  const [hasProcessedRecording, setHasProcessedRecording] = useState(false)
+
+  const finalizeNervousnessScore = useCallback((score = 0) => {
+    const normalizedScore = Number.isFinite(score) ? score : Number(score) || 0
+    setNervousnessScore(normalizedScore)
+    setHasProcessedRecording(true)
+  }, [])
+
+  const uploadRecording = useCallback(async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      console.log("🛑 Stopping MediaRecorder and uploading...")
+      mediaRecorderRef.current.stop()
+
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      const chunks = mediaRecorderRef.current.chunks || []
+      if (chunks.length === 0) {
+        console.warn("⚠️ No audio chunks captured!")
+        finalizeNervousnessScore(0)
+        return
+      }
+
+      const blob = new Blob(chunks, { type: "audio/webm" })
+      const formData = new FormData()
+      formData.append("file", blob, "interview_audio.webm")
+
+      try {
+        const res = await fetch("http://localhost:5000/analyze", {
+          method: "POST",
+          body: formData,
+        })
+        const data = await res.json()
+        console.log("✅ Nervousness score from Flask:", data)
+        const score =
+          data && typeof data.nervousness_score === "number"
+            ? data.nervousness_score
+            : Number(data?.nervousness_score) || 0
+        finalizeNervousnessScore(score)
+      } catch (err) {
+        console.error("❌ Flask fetch error:", err)
+        finalizeNervousnessScore(0)
+      }
+    } else {
+      console.warn("⚠️ MediaRecorder inactive at call end")
+      finalizeNervousnessScore(0)
+    }
+  }, [finalizeNervousnessScore])
 
   // Event handlers
   useEffect(() => {
@@ -71,48 +117,7 @@ const Agent = ({
       callEndedRef.current = false;
     };
 
-    // const onCallEnd = () => {
-    //   console.log("Call ended normally");
-    //   if (!callEndedRef.current) {
-    //     callEndedRef.current = true;
-    //     setCallStatus(CallStatus.FINISHED);
-
-    //     // ✅ Stop and upload background recording
-    //     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-    //       console.log("🛑 Stopping MediaRecorder and uploading...");
-    //       mediaRecorderRef.current.stop();
-
-    //       // Wait a moment for chunks to flush
-    //       setTimeout(async () => {
-    //         const chunks = mediaRecorderRef.current.chunks || [];
-    //         if (chunks.length === 0) {
-    //           console.warn("⚠️ No audio chunks captured!");
-    //           return;
-    //         }
-
-    //         const blob = new Blob(chunks, { type: "audio/webm" });
-    //         const formData = new FormData();
-    //         formData.append("file", blob, "interview_audio.webm");
-
-    //         try {
-    //           const res = await fetch("http://localhost:5000/analyze", {
-    //             method: "POST",
-    //             body: formData,
-    //           });
-    //           const data = await res.json();
-    //           console.log("✅ Nervousness score from Flask:", data);
-    //           setNervousnessScore(data.nervousness_score);
-    //         } catch (err) {
-    //           console.error("❌ Flask fetch error:", err);
-    //         }
-    //       }, 1000);
-    //     } else {
-    //       console.warn("⚠️ MediaRecorder inactive at call end");
-    //     }
-    //   }
-    // };
-
-    // ✅ Update onCallEnd to use the extracted function
+      // ✅ Update onCallEnd to use the extracted function
     const onCallEnd = async () => {
       console.log("Call ended normally");
       if (!callEndedRef.current) {
@@ -300,7 +305,7 @@ const Agent = ({
       vapi.off("speech-end", onSpeechEnd)
       vapi.off("error", onError)
     }
-  }, [callStatus])
+  }, [callStatus, uploadRecording])
 
   // Handle feedback generation or redirect when call finishes
   useEffect(() => {
@@ -356,7 +361,7 @@ const Agent = ({
             strengths,
             improvements,
             recommendations,
-            nervousness_score: nervousnessScore,
+            nervousness_score: nervousnessScore ?? 0,
           }
 
           console.log("[v0] Sending request to save-interview API:", JSON.stringify(requestBody, null, 2))
@@ -411,17 +416,25 @@ const Agent = ({
       }
     }
 
-    if (callStatus === CallStatus.FINISHED && !isProcessingFeedback && !hasInterviewBeenSavedRef.current) {
+    if (
+      callStatus === CallStatus.FINISHED &&
+      !isProcessingFeedback &&
+      !hasInterviewBeenSavedRef.current &&
+      hasProcessedRecording &&
+      nervousnessScore !== null
+    ) {
       console.log("[v0] Interview finished, saving complete interview data...")
       handleSaveInterview(messages)
     }
-  }, [messages, callStatus, userId, type, router, isProcessingFeedback])
+  }, [messages, callStatus, userId, type, router, isProcessingFeedback, hasProcessedRecording, nervousnessScore])
 
   // Start call with Assistant
   const handleCall = useCallback(async () => {
     setCallStatus(CallStatus.CONNECTING)
     setErrorMessage("")
     callEndedRef.current = false
+    setHasProcessedRecording(false)
+    setNervousnessScore(null)
 
     try {
       // Validate environment variables
@@ -600,44 +613,6 @@ const Agent = ({
     }
   }
 
-  // End call
-  // ✅ Extract the upload logic into a separate function
-  const uploadRecording = async () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      console.log("🛑 Stopping MediaRecorder and uploading...");
-      mediaRecorderRef.current.stop();
-
-      // Wait a moment for chunks to flush
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const chunks = mediaRecorderRef.current.chunks || [];
-      if (chunks.length === 0) {
-        console.warn("⚠️ No audio chunks captured!");
-        return;
-      }
-
-      const blob = new Blob(chunks, { type: "audio/webm" });
-      const formData = new FormData();
-      formData.append("file", blob, "interview_audio.webm");
-
-      try {
-        const res = await fetch("http://localhost:5000/analyze", {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-        console.log("✅ Nervousness score from Flask:", data);
-        setNervousnessScore(data.nervousness_score);
-      } catch (err) {
-        console.error("❌ Flask fetch error:", err);
-      }
-    } else {
-      console.warn("⚠️ MediaRecorder inactive at call end");
-    }
-  };
-
-  
-
   // ✅ Update handleDisconnect to call upload directly
   const handleDisconnect = async () => {
     if (!callEndedRef.current) {
@@ -665,6 +640,8 @@ const Agent = ({
     callEndedRef.current = false
     // Reset the saved interview flag when retrying
     hasInterviewBeenSavedRef.current = false
+    setHasProcessedRecording(false)
+    setNervousnessScore(null)
   }
 
   // Highlight helper classes

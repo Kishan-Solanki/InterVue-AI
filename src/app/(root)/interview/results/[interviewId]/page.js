@@ -6,7 +6,7 @@ import { CheckCircle2, TrendingUp, Lightbulb, MessageSquare, RefreshCw, LayoutDa
 
 export default function InterviewResultsById({ params }) {
   const router = useRouter()
-  const { interviewId } = use(params) || {}
+  const { interviewId } = use(params) ?? {}
 
   const [interview, setInterview] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -20,13 +20,16 @@ export default function InterviewResultsById({ params }) {
         return
       }
       try {
-        const res = await fetch(`/api/interview/get-interview?id=${interviewId}`)
-        if (!res.ok) throw new Error("Failed to fetch interview")
+        const res = await fetch(`/api/interview/get-interview?id=${encodeURIComponent(interviewId)}`)
+        if (!res.ok) {
+          const errorPayload = await res.json().catch(() => ({}))
+          throw new Error(errorPayload.error || "Failed to fetch interview")
+        }
         const data = await res.json()
         setInterview(data.interview)
       } catch (e) {
         console.error(e)
-        setError("Failed to load interview results")
+        setError(e.message || "Failed to load interview results")
       } finally {
         setLoading(false)
       }
@@ -124,6 +127,17 @@ export default function InterviewResultsById({ params }) {
                 <span>Assessment is being generated. Please refresh the page in a few moments.</span>
               </div>
             )}
+          </div>
+
+          {/*Nervousness Score Box */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6 md:p-8 hover:border-cyan-500/30 transition-all">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-cyan-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Nervousness Score</h2>
+            </div>
+            <p className="text-neutral-300 leading-relaxed text-lg">{interview.nervousness_score ?? "Not available"}</p>
           </div>
 
           {/* Two Column Layout for Strengths and Improvements */}

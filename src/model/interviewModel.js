@@ -53,6 +53,10 @@ const interviewSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    nervousness_score: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
