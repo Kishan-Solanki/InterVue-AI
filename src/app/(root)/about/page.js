@@ -24,7 +24,8 @@ export default function AboutPage() {
 
   const links = [
     { title: "Home", icon: <IconHome className="h-full w-full" />, href: "/" },
-    { title: "GitHub", icon: <IconBrandGithub className="h-full w-full" />, href: "https://github.com/Kishan-Solanki/InterVue-AI" },
+    //uncomment this immedietly 
+    //{ title: "GitHub", icon: <IconBrandGithub className="h-full w-full" />, href: "https://github.com/Kishan-Solanki/InterVue-AI" },
     { title: "Logout", icon: <IconLogout className="h-full w-full" />, onClick: handleLogout },
   ];
   

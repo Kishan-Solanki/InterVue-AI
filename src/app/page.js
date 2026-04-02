@@ -61,13 +61,21 @@ export default function Home() {
     //   ),
     //   href: "#",
     // },
-    {
-      title: "GitHub",
-      icon: (
-        <IconBrandGithub className="h-full w-full text-neutral-500 dark:text-neutral-300" />
-      ),
-      href: "https://github.com/Kishan-Solanki/InterVue-AI",
-    },
+
+
+
+
+
+
+
+    //uncomment this immedieatly 
+    // {
+    //   title: "GitHub",
+    //   icon: (
+    //     <IconBrandGithub className="h-full w-full text-neutral-500 dark:text-neutral-300" />
+    //   ),
+    //   href: "https://github.com/Kishan-Solanki/InterVue-AI",
+    // },
     {
       title: "Logout",
       icon: (
